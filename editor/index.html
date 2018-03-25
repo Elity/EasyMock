@@ -1,0 +1,69 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <!-- when using the mode "code", it's important to specify charset utf-8 -->
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+
+    <link href="https://cdn.bootcss.com/jsoneditor/5.14.1/jsoneditor.css" rel="stylesheet">
+    <script src="https://cdn.bootcss.com/jsoneditor/5.14.1/jsoneditor.js"></script>
+    <script src="https://cdn.bootcss.com/Mock.js/1.0.1-beta3/mock.js"></script>
+    <style>
+        #wrap {
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .editor {
+            width: 400px;
+            height: 400px;
+            display: inline-block;
+            vertical-align: top;
+        }
+    </style>
+</head>
+
+<body>
+    <div id='wrap'>
+        <div id="jsoneditorEdit" class="editor"></div>
+        <div id="jsoneditorRead" class="editor"></div>
+    </div>
+    <script>
+        function debounce(method, delay) {
+            var timer = null, ctx, args;
+            return function () {
+                ctx = this;
+                args = arguments;
+                clearTimeout(timer);
+                timer = setTimeout(function () {
+                    method.apply(ctx, args);
+                }, delay);
+            }
+        }
+        var reader = new JSONEditor(document.getElementById("jsoneditorRead"), { mode: 'view' })
+        var editor = new JSONEditor(document.getElementById("jsoneditorEdit"), {
+            mode: 'code',
+            onChange: debounce(() => {
+                try {
+                    editor.get()
+                    reader.set(Mock.mock(editor.get()))
+                } catch (e) {
+
+                }
+            }, 500)
+        });
+
+        // set json
+        var json = {
+            "Array": [1, 2, 3],
+            "Boolean": true,
+            "Null": null,
+            "Number": 123,
+            "Object": { "a": "b", "c": "d" },
+            "String": "Hello World"
+        }
+        editor.set(json)
+    </script>
+</body>
+
+</html>

@@ -1,33 +1,35 @@
 var fs = require("fs");
-var assert = require("assert");
-var chokidar = require("chokidar");
-var chalk = require("chalk");
-var proxy = require("express-http-proxy");
 var url = require("url");
 var path = require("path");
 var glob = require("glob");
+var chalk = require("chalk");
+var assert = require("assert");
+var chokidar = require("chokidar");
+var bodyParser = require("body-parser");
+var proxy = require("express-http-proxy");
+var api = require("./api");
+
 var { existsSync, realpathSync } = fs;
 var { join, resolve } = path;
-var bodyParser = require("body-parser");
+
+const debug = require("debug")("mockserver");
+
+let error = null;
+const paths = getPaths(process.cwd());
+const configFile = paths.resolveApp(".roadhogrc.mock.js");
+const mockDir = paths.resolveApp("./mock/");
 
 function getPaths(cwd) {
   const appDirectory = realpathSync(cwd);
   function resolveApp(relativePath) {
     return resolve(appDirectory, relativePath);
   }
-
   return {
     resolveApp,
     appDirectory
   };
 }
 
-const debug = require("debug")("roadhog:mock");
-
-let error = null;
-const paths = getPaths(process.cwd());
-const configFile = paths.resolveApp(".roadhogrc.mock.js");
-const mockDir = paths.resolveApp("./mock/");
 function getConfig() {
   if (existsSync(configFile)) {
     // disable require cache
@@ -38,19 +40,13 @@ function getConfig() {
       }
     });
     let config = require(configFile);
-    getEntry(`${mockDir}/*.js`).forEach(file => {
+    glob.sync(`${mockDir}/*.js`).forEach(file => {
       Object.assign(config, require(file));
     });
     return config;
   } else {
     return {};
   }
-}
-
-console.log(getEntry(`${mockDir}/**/*.js`));
-
-function getEntry(path) {
-  return glob.sync(path);
 }
 
 function createMockHandler(method, path, value) {
@@ -82,10 +78,11 @@ function createProxy(method, path, target) {
 function realApplyMock(devServer) {
   const config = getConfig();
   const { app } = devServer;
-
   devServer.use(bodyParser.json({ limit: "5mb", strict: false }));
   devServer.use(bodyParser.urlencoded({ extended: true, limit: "5mb" }));
 
+  app.get("/getFileList", api.getFileList(mockDir));
+  app.post("/getApiList", api.getApiList(mockDir));
   Object.keys(config).forEach(key => {
     const { method, path } = parseKey(key);
     const val = config[key];
