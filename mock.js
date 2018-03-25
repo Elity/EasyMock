@@ -38,10 +38,9 @@ function getConfig() {
       }
     });
     let config = require(configFile);
-    getEntry(`${mockDir}/**/*.js`).forEach(file => {
+    getEntry(`${mockDir}/*.js`).forEach(file => {
       Object.assign(config, require(file));
     });
-    console.log(config);
     return config;
   } else {
     return {};
