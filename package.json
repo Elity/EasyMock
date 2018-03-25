@@ -1,0 +1,24 @@
+{
+  "name": "mockserver",
+  "version": "1.0.0",
+  "description": "a mock server for TZ",
+  "main": "index.js",
+  "scripts": {
+	"start": "cross-env HOST=0.0.0.0 node run.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mock"
+  ],
+  "author": "Fighting",
+  "license": "MIT",
+  "devDependencies": {
+    "chalk": "^2.3.2",
+    "chokidar": "^2.0.3",
+    "cross-env": "^5.1.4",
+    "debug": "^3.1.0",
+    "express-http-proxy": "^1.1.0",
+    "url": "^0.11.0",
+    "webpack-dev-server": "^2.11.2"
+  }
+}
