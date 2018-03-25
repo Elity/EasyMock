@@ -1,16 +1,14 @@
-var fs = require('fs');
-var assert = require('assert');
-var chokidar = require('chokidar');
-var chalk = require('chalk');
-var proxy = require('express-http-proxy');
-var url = require('url');
-var path = require('path');
+var fs = require("fs");
+var assert = require("assert");
+var chokidar = require("chokidar");
+var chalk = require("chalk");
+var proxy = require("express-http-proxy");
+var url = require("url");
+var path = require("path");
+var glob = require("glob");
 var { existsSync, realpathSync } = fs;
 var { join, resolve } = path;
-var bodyParser = require('body-parser');
-
-
-
+var bodyParser = require("body-parser");
 
 function getPaths(cwd) {
   const appDirectory = realpathSync(cwd);
@@ -20,18 +18,16 @@ function getPaths(cwd) {
 
   return {
     resolveApp,
-    appDirectory,
+    appDirectory
   };
 }
 
-
-
-const debug = require('debug')('roadhog:mock');
+const debug = require("debug")("roadhog:mock");
 
 let error = null;
 const paths = getPaths(process.cwd());
-const configFile = paths.resolveApp('.roadhogrc.mock.js');
-const mockDir = paths.resolveApp('./mock/');
+const configFile = paths.resolveApp(".roadhogrc.mock.js");
+const mockDir = paths.resolveApp("./mock/");
 function getConfig() {
   if (existsSync(configFile)) {
     // disable require cache
@@ -41,15 +37,26 @@ function getConfig() {
         delete require.cache[file];
       }
     });
-    return require(configFile);
+    let config = require(configFile);
+    getEntry(`${mockDir}/**/*.js`).forEach(file => {
+      Object.assign(config, require(file));
+    });
+    console.log(config);
+    return config;
   } else {
     return {};
   }
 }
 
+console.log(getEntry(`${mockDir}/**/*.js`));
+
+function getEntry(path) {
+  return glob.sync(path);
+}
+
 function createMockHandler(method, path, value) {
   return function mockHandler(...args) {
-    if (typeof value === 'function') {
+    if (typeof value === "function") {
       value(...args);
     } else {
       args[1].json(value);
@@ -68,7 +75,7 @@ function createProxy(method, path, target) {
       if (matches.length > 1) {
         matchPath = matches[1];
       }
-      return join(url.parse(target).path, matchPath).replace(/\\/g, '/');
+      return join(url.parse(target).path, matchPath).replace(/\\/g, "/");
     }
   });
 }
@@ -77,16 +84,20 @@ function realApplyMock(devServer) {
   const config = getConfig();
   const { app } = devServer;
 
-  devServer.use(bodyParser.json({ limit: '5mb', strict: false }));
-  devServer.use(bodyParser.urlencoded({ extended: true, limit: '5mb' }));
+  devServer.use(bodyParser.json({ limit: "5mb", strict: false }));
+  devServer.use(bodyParser.urlencoded({ extended: true, limit: "5mb" }));
 
   Object.keys(config).forEach(key => {
     const { method, path } = parseKey(key);
-    const val = config[key]
-    const typeVal = typeof val
+    const val = config[key];
+    const typeVal = typeof val;
     assert(!!app[method], `method of ${key} is not valid`);
-    assert(['function', 'object', 'string'].includes(typeVal), `mock value of ${key} should be function or object or string, but got ${typeVal}`);
-    if (typeVal === 'string') { // url转发的情形  /api/test  =>   https://www.shiguangkey.com/api/mine
+    assert(
+      ["function", "object", "string"].includes(typeVal),
+      `mock value of ${key} should be function or object or string, but got ${typeVal}`
+    );
+    if (typeVal === "string") {
+      // url转发的情形  /api/test  =>   https://www.shiguangkey.com/api/mine
       if (/\(.+\)/.test(path)) {
         path = new RegExp(`^${path}$`);
       }
@@ -99,7 +110,7 @@ function realApplyMock(devServer) {
   // 调整 stack，把 historyApiFallback 放到最后
   let lastIndex = null;
   app._router.stack.forEach((item, index) => {
-    if (item.name === 'webpackDevMiddleware') {
+    if (item.name === "webpackDevMiddleware") {
       lastIndex = index;
     }
   });
@@ -114,10 +125,10 @@ function realApplyMock(devServer) {
 
   const watcher = chokidar.watch([configFile, mockDir], {
     ignored: /node_modules/,
-    persistent: true,
+    persistent: true
   });
-  watcher.on('change', path => {
-    console.log(chalk.green('CHANGED'), path.replace(paths.appDirectory, '.'));
+  watcher.on("change", path => {
+    console.log(chalk.green("CHANGED"), path.replace(paths.appDirectory, "."));
     watcher.close();
 
     // 删除旧的 mock api
@@ -128,11 +139,11 @@ function realApplyMock(devServer) {
 }
 
 function parseKey(key) {
-  let arr = key.trim().split(/\s+/)
-  let [method, path] = arr
+  let arr = key.trim().split(/\s+/);
+  let [method, path] = arr;
   if (!path) {
-    path = method
-    method = 'get'
+    path = method;
+    method = "get";
   }
   return { method, path };
 }
@@ -140,22 +151,22 @@ function parseKey(key) {
 function outputError() {
   if (!error) return;
 
-  const filePath = error.message.split(': ')[0];
-  const relativeFilePath = filePath.replace(paths.appDirectory, '.');
+  const filePath = error.message.split(": ")[0];
+  const relativeFilePath = filePath.replace(paths.appDirectory, ".");
   const errors = error.stack
-    .split('\n')
-    .filter(line => line.trim().indexOf('at ') !== 0)
-    .map(line => line.replace(`${filePath}: `, ''));
-  errors.splice(1, 0, ['']);
+    .split("\n")
+    .filter(line => line.trim().indexOf("at ") !== 0)
+    .map(line => line.replace(`${filePath}: `, ""));
+  errors.splice(1, 0, [""]);
 
-  console.log(chalk.red('Failed to parse mock config.'));
+  console.log(chalk.red("Failed to parse mock config."));
   console.log();
   console.log(`Error in ${relativeFilePath}`);
-  console.log(errors.join('\n'));
+  console.log(errors.join("\n"));
   console.log();
 }
 
-module.exports = function applyMock(devServer) {
+function applyMock(devServer) {
   try {
     realApplyMock(devServer);
     error = null;
@@ -168,12 +179,12 @@ module.exports = function applyMock(devServer) {
 
     const watcher = chokidar.watch([configFile, mockDir], {
       ignored: /node_modules/,
-      ignoreInitial: true,
+      ignoreInitial: true
     });
-    watcher.on('change', path => {
+    watcher.on("change", path => {
       console.log(
-        chalk.green('CHANGED'),
-        path.replace(paths.appDirectory, '.'),
+        chalk.green("文件修改："),
+        path.replace(paths.appDirectory, ".")
       );
       watcher.close();
       applyMock(devServer);
@@ -181,3 +192,4 @@ module.exports = function applyMock(devServer) {
   }
 }
 
+module.exports = applyMock;
