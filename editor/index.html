@@ -24,7 +24,7 @@
 
         #menu-tree {
             display: inline-block;
-            width: 200px;
+            width: 300px;
             height: 800px;
             background: #2e2e2e;
         }
@@ -81,29 +81,17 @@
 </head>
 
 <body>
-    <div id='wrap'>
-        <div id="menu-tree">
-            <div class="jsoneditor-menu">
-            </div>
-            <div class="menu-item">
-                <tree class="item" :data="treeData">
-                </tree>
-            </div>
-        </div>
-        <div id="jsoneditorEdit" class="editor"></div>
-        <div id="jsoneditorRead" class="editor"></div>
-    </div>
     <script type="text/x-template" id="tree-template">
         <ul class="tree-ul">
             <li v-for="cls in data">
                 <a href='javascript:;' @click="toggle(cls)">
-                    {{cls.name}}<span>[{{ cls.open ? '-' : '+' }}]</span>
+                    <span>[{{ cls.open ? '-' : '+' }}]</span>{{cls.name}}
                 </a>
                 <ul v-show="cls.open" class="tree-sub">
                     <li v-if="cls.children.length === 0">
                         <a href='javascript:;'>啥子都冒得</a>
                     </li>
-                    <li v-for="api in cls.children">
+                    <li v-for="api in cls.children" @click="apiEdit(api.body)">
                         <a href='javascript:;'>{{api.name}}</a>
                     </li>
                 </ul>
@@ -114,6 +102,19 @@
             </li>
         </ul>
     </script>
+    <div id='wrap'>
+        <div id="menu-tree">
+            <div class="jsoneditor-menu">
+            </div>
+            <div class="menu-item">
+                <tree class="item" :data="treeData" @change="apiEdit">
+                </tree>
+            </div>
+        </div>
+        <div id="jsoneditorEdit" class="editor"></div>
+        <div id="jsoneditorRead" class="editor"></div>
+    </div>
+
     <script>
         (function () {
             Vue.component('tree', {
@@ -122,11 +123,21 @@
                     data: Array
                 },
                 methods: {
-                    toggle: function (cls) {
+                    toggle(cls) {
                         cls.open = !cls.open
-                        console.log(cls)
+                        if (cls.open && !cls.children.length) {
+                            post('/getMockApiList', { file: cls.name }).then(res => {
+                                cls.children = res.data.map(api => ({
+                                    name: api.method,
+                                    body: api.body
+                                }))
+                            })
+                        }
                     },
-                    addChild: function () {
+                    apiEdit(body) {
+                        this.$emit('change', body)
+                    },
+                    addChild() {
                         this.data.push({
                             name: 'new stuff',
                             children: [],
@@ -139,17 +150,40 @@
             new Vue({
                 el: '#wrap',
                 data: {
-                    treeData: [
-                        { name: 'app1', open: false, children: [{ name: '/api/test/1' }, { name: '/api/test/2' }, { name: '/api/test/3' }] },
-                        { name: 'app2', open: false, children: [{ name: '/api/test/1' }, { name: '/api/test/2' }, { name: '/api/test/3' }] },
-                        { name: 'app3', open: false, children: [{ name: '/api/test/1' }, { name: '/api/test/2' }, { name: '/api/test/3' }] },
-                        { name: 'app4', open: false, children: [{ name: '/api/test/1' }, { name: '/api/test/2' }, { name: '/api/test/3' }] }
-                    ]
+                    treeData: [],
+                    reader: null,
+                    editor: null
+                },
+                methods: {
+                    apiEdit(body) {
+                        this.editor.setText(body)
+                        syncEditor(this.editor, this.reader)
+                        this.editor.format()
+                        this.editor.focus()
+                    }
                 },
                 mounted() {
-                    initEditor()
+                    let obj = initEditor()
+                    this.reader = obj.reader
+                    this.editor = obj.editor
+                    syncEditor(this.editor, this.reader)
+                    get('/getMockFileList').then(res => {
+                        this.treeData = res.data.map(md => {
+                            return { name: md, open: false, children: [] }
+                        })
+                    })
                 }
             })
+            function qs(data) {
+                return Object.keys(data).reduce((last, cur) => data[cur] ? last += `${cur}=${data[cur]}&` : last, '').slice(0, -1)
+            }
+            function get(url, data = {}) {
+                return fetch(url + '?' + qs(data)).then(res => res.json())
+            }
+            function post(url, data = {}) {
+                return fetch(url, { method: "POST", body: qs(data), headers: { 'content-type': 'application/x-www-form-urlencoded' } }).then(res => res.json())
+            }
+
             function debounce(method, delay) {
                 var timer = null, ctx, args;
                 return function () {
@@ -161,43 +195,44 @@
                     }, delay);
                 }
             }
+            function syncEditor(editor, reader) {
+                try {
+                    const json = editor.getText()
+                    const obj = JSON.parse(json)
+                    reader.set(Mock.mock(obj))
+                } catch (e) {
+
+                }
+            }
             function initEditor() {
                 var reader = new JSONEditor(document.getElementById("jsoneditorRead"), { mode: 'view' })
                 var editor = new JSONEditor(document.getElementById("jsoneditorEdit"), {
                     mode: 'code',
                     onChange: debounce(() => {
-                        try {
-                            const json = editor.getText()
-                            const obj = JSON.parse(json)
-                            reader.set(Mock.mock(obj))
-                        } catch (e) {
-
-                        }
+                        syncEditor(editor, reader)
                     }, 500)
-                });
+                }, {
+                        "boolean|1-2": true,
+                        "array|1-10": [
+                            {
+                                "name|+1": [
+                                    "Hello",
+                                    "Mock.js",
+                                    "!"
+                                ]
+                            }
+                        ],
+                        "object|2-4": {
+                            "110000": "北京市",
+                            "120000": "天津市",
+                            "130000": "河北省",
+                            "140000": "山西省"
+                        },
+                        "number|1-100": 100,
+                        "string|1-10": "★"
+                    });
 
-                // set json
-                var json = {
-                    "boolean|1-2": true,
-                    "array|1-10": [
-                        {
-                            "name|+1": [
-                                "Hello",
-                                "Mock.js",
-                                "!"
-                            ]
-                        }
-                    ],
-                    "object|2-4": {
-                        "110000": "北京市",
-                        "120000": "天津市",
-                        "130000": "河北省",
-                        "140000": "山西省"
-                    },
-                    "number|1-100": 100,
-                    "string|1-10": "★"
-                }
-                editor.set(json)
+                return { reader, editor }
             }
 
         })()
