@@ -8,6 +8,7 @@
     <link href="https://cdn.bootcss.com/jsoneditor/5.14.1/jsoneditor.css" rel="stylesheet">
     <script src="https://cdn.bootcss.com/jsoneditor/5.14.1/jsoneditor.js"></script>
     <script src="https://cdn.bootcss.com/Mock.js/1.0.1-beta3/mock.js"></script>
+    <script src="https://cdn.bootcss.com/vue/2.5.16/vue.min.js"></script>
     <style>
         #wrap {
             margin: 0 auto;
@@ -15,54 +16,192 @@
         }
 
         .editor {
-            width: 400px;
-            height: 400px;
+            width: 500px;
+            height: 800px;
             display: inline-block;
             vertical-align: top;
+        }
+
+        #menu-tree {
+            display: inline-block;
+            width: 200px;
+            height: 800px;
+            background: #2e2e2e;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .tree-ul {
+            height: 765px;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        .tree-ul>li {
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .tree-ul>li>a {
+            background: #424242;
+            color: #bdbdbd;
+            display: block;
+            text-decoration: none;
+            padding: 14px 10px
+        }
+
+        .tree-ul>li:hover>a {
+            background-color: #616161;
+            color: #f5f5f5;
+        }
+
+        .tree-sub {
+            padding: 10px 0;
+        }
+
+        .tree-sub>li>a {
+            background: #2e2e2e;
+            color: #e0e0e0;
+            display: block;
+            height: 30px;
+            line-height: 30px;
+            padding: 10px;
+            text-decoration: none;
+        }
+
+        .tree-sub>li:hover>a {
+            background-color: #424242;
+            color: #f5f5f5;
         }
     </style>
 </head>
 
 <body>
     <div id='wrap'>
+        <div id="menu-tree">
+            <div class="jsoneditor-menu">
+            </div>
+            <div class="menu-item">
+                <tree class="item" :data="treeData">
+                </tree>
+            </div>
+        </div>
         <div id="jsoneditorEdit" class="editor"></div>
         <div id="jsoneditorRead" class="editor"></div>
     </div>
+    <script type="text/x-template" id="tree-template">
+        <ul class="tree-ul">
+            <li v-for="cls in data">
+                <a href='javascript:;' @click="toggle(cls)">
+                    {{cls.name}}<span>[{{ cls.open ? '-' : '+' }}]</span>
+                </a>
+                <ul v-show="cls.open" class="tree-sub">
+                    <li v-if="cls.children.length === 0">
+                        <a href='javascript:;'>啥子都冒得</a>
+                    </li>
+                    <li v-for="api in cls.children">
+                        <a href='javascript:;'>{{api.name}}</a>
+                    </li>
+                </ul>
+                
+            </li>
+            <li class="add" @click="addChild">
+                <a href='javascript:;'>添加模块</a>
+            </li>
+        </ul>
+    </script>
     <script>
-        function debounce(method, delay) {
-            var timer = null, ctx, args;
-            return function () {
-                ctx = this;
-                args = arguments;
-                clearTimeout(timer);
-                timer = setTimeout(function () {
-                    method.apply(ctx, args);
-                }, delay);
-            }
-        }
-        var reader = new JSONEditor(document.getElementById("jsoneditorRead"), { mode: 'view' })
-        var editor = new JSONEditor(document.getElementById("jsoneditorEdit"), {
-            mode: 'code',
-            onChange: debounce(() => {
-                try {
-                    editor.get()
-                    reader.set(Mock.mock(editor.get()))
-                } catch (e) {
-
+        (function () {
+            Vue.component('tree', {
+                template: '#tree-template',
+                props: {
+                    data: Array
+                },
+                methods: {
+                    toggle: function (cls) {
+                        cls.open = !cls.open
+                        console.log(cls)
+                    },
+                    addChild: function () {
+                        this.data.push({
+                            name: 'new stuff',
+                            children: [],
+                            open: false
+                        })
+                    }
                 }
-            }, 500)
-        });
+            })
 
-        // set json
-        var json = {
-            "Array": [1, 2, 3],
-            "Boolean": true,
-            "Null": null,
-            "Number": 123,
-            "Object": { "a": "b", "c": "d" },
-            "String": "Hello World"
-        }
-        editor.set(json)
+            new Vue({
+                el: '#wrap',
+                data: {
+                    treeData: [
+                        { name: 'app1', open: false, children: [{ name: '/api/test/1' }, { name: '/api/test/2' }, { name: '/api/test/3' }] },
+                        { name: 'app2', open: false, children: [{ name: '/api/test/1' }, { name: '/api/test/2' }, { name: '/api/test/3' }] },
+                        { name: 'app3', open: false, children: [{ name: '/api/test/1' }, { name: '/api/test/2' }, { name: '/api/test/3' }] },
+                        { name: 'app4', open: false, children: [{ name: '/api/test/1' }, { name: '/api/test/2' }, { name: '/api/test/3' }] }
+                    ]
+                },
+                mounted() {
+                    initEditor()
+                }
+            })
+            function debounce(method, delay) {
+                var timer = null, ctx, args;
+                return function () {
+                    ctx = this;
+                    args = arguments;
+                    clearTimeout(timer);
+                    timer = setTimeout(function () {
+                        method.apply(ctx, args);
+                    }, delay);
+                }
+            }
+            function initEditor() {
+                var reader = new JSONEditor(document.getElementById("jsoneditorRead"), { mode: 'view' })
+                var editor = new JSONEditor(document.getElementById("jsoneditorEdit"), {
+                    mode: 'code',
+                    onChange: debounce(() => {
+                        try {
+                            const json = editor.getText()
+                            const obj = JSON.parse(json)
+                            reader.set(Mock.mock(obj))
+                        } catch (e) {
+
+                        }
+                    }, 500)
+                });
+
+                // set json
+                var json = {
+                    "boolean|1-2": true,
+                    "array|1-10": [
+                        {
+                            "name|+1": [
+                                "Hello",
+                                "Mock.js",
+                                "!"
+                            ]
+                        }
+                    ],
+                    "object|2-4": {
+                        "110000": "北京市",
+                        "120000": "天津市",
+                        "130000": "河北省",
+                        "140000": "山西省"
+                    },
+                    "number|1-100": 100,
+                    "string|1-10": "★"
+                }
+                editor.set(json)
+            }
+
+        })()
+
     </script>
 </body>
 

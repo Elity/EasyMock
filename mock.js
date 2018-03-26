@@ -9,6 +9,8 @@ var bodyParser = require("body-parser");
 var proxy = require("express-http-proxy");
 var api = require("./api");
 
+// TODO  chokidar 当前的配置不支持新增文件
+
 var { existsSync, realpathSync } = fs;
 var { join, resolve } = path;
 
@@ -81,8 +83,9 @@ function realApplyMock(devServer) {
   devServer.use(bodyParser.json({ limit: "5mb", strict: false }));
   devServer.use(bodyParser.urlencoded({ extended: true, limit: "5mb" }));
 
-  app.get("/getFileList", api.getFileList(mockDir));
-  app.post("/getApiList", api.getApiList(mockDir));
+  app.get("/getMockFileList", api.getMockFileList(mockDir));
+  app.post("/getMockApiList", api.getMockApiList(mockDir));
+  app.post("/setMockApi", api.setMockApi(mockDir));
   Object.keys(config).forEach(key => {
     const { method, path } = parseKey(key);
     const val = config[key];
@@ -174,12 +177,12 @@ function applyMock(devServer) {
     outputError();
 
     const watcher = chokidar.watch([configFile, mockDir], {
-      ignored: /node_modules/,
-      ignoreInitial: true
+      ignored: /node_modules/
+      //ignoreInitial: true
     });
     watcher.on("change", path => {
       console.log(
-        chalk.green("文件修改："),
+        chalk.green("CHANGED："),
         path.replace(paths.appDirectory, ".")
       );
       watcher.close();
