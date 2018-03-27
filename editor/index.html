@@ -46,6 +46,12 @@
             text-align: left;
         }
 
+        .tree-ul>li>input {
+            display: block;
+            padding: 10px;
+            width: 276px;
+        }
+
         .tree-ul>li>a {
             background: #424242;
             color: #bdbdbd;
@@ -94,8 +100,10 @@
                     <li v-for="api in cls.children" @click="apiEdit(api.body)">
                         <a href='javascript:;'>{{api.name}}</a>
                     </li>
-                </ul>
-                
+                </ul>   
+            </li>
+            <li>
+                <input type='text' v-model='newModuleName' v-if='adding' ref='editInput' @blur="addModule" @keyup.enter="addModule"/>
             </li>
             <li class="add" @click="addChild">
                 <a href='javascript:;'>添加模块</a>
@@ -122,6 +130,12 @@
                 props: {
                     data: Array
                 },
+                data() {
+                    return {
+                        adding: false,
+                        newModuleName: ''
+                    }
+                },
                 methods: {
                     toggle(cls) {
                         cls.open = !cls.open
@@ -138,11 +152,29 @@
                         this.$emit('change', body)
                     },
                     addChild() {
-                        this.data.push({
-                            name: 'new stuff',
-                            children: [],
-                            open: false
+                        this.adding = true
+                        Vue.nextTick(() => {
+                            this.$refs.editInput.focus()
                         })
+
+                    },
+                    addModule() {
+                        const md = this.newModuleName.trim()
+                        this.adding = false
+                        if (md) {
+                            if (this.data.some(d => d.name === md)) {
+                                alert('模块名重复，请重试')
+                                this.newModuleName = ''
+                                return
+                            }
+                            this.data.push({
+                                name: md,
+                                children: [],
+                                open: false
+                            })
+                            this.newModuleName = ''
+                        }
+
                     }
                 }
             })

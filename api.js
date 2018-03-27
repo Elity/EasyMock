@@ -13,7 +13,13 @@ function getMockFileList(dir) {
 
 function getMockApiList(dir) {
   return function apiGetApiList(res, req) {
-    let all = require(dir + "/" + res.body.file);
+    let all;
+    try {
+      all = require(dir + "/" + res.body.file);
+    } catch (e) {
+      all = {};
+    }
+
     req.json({
       status: 0,
       data: Object.keys(all).map(method => ({
