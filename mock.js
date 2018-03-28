@@ -16,6 +16,17 @@ var { join, resolve } = path;
 
 const debug = require("debug")("mockserver");
 
+const webApis = [
+  { type: "get", name: "getMockFileList" },
+  { type: "post", name: "getMockApiList" },
+  { type: "post", name: "addMockModule" },
+  { type: "post", name: "changeMockApi" },
+  { type: "post", name: "addMockApi" },
+  { type: "post", name: "setMockApi" },
+  { type: "post", name: "delMockModule" },
+  { type: "post", name: "delMockApi" }
+];
+
 let error = null;
 const paths = getPaths(process.cwd());
 const configFile = paths.resolveApp(".roadhogrc.mock.js");
@@ -83,9 +94,10 @@ function realApplyMock(devServer) {
   devServer.use(bodyParser.json({ limit: "5mb", strict: false }));
   devServer.use(bodyParser.urlencoded({ extended: true, limit: "5mb" }));
 
-  app.get("/getMockFileList", api.getMockFileList(mockDir));
-  app.post("/getMockApiList", api.getMockApiList(mockDir));
-  app.post("/setMockApi", api.setMockApi(mockDir));
+  webApis.forEach(o => {
+    app[o.type]("/" + o.name, api[o.name](mockDir));
+  });
+
   Object.keys(config).forEach(key => {
     const { method, path } = parseKey(key);
     const val = config[key];
@@ -96,6 +108,7 @@ function realApplyMock(devServer) {
       `mock value of ${key} should be function or object or string, but got ${typeVal}`
     );
     if (typeVal === "string") {
+      console.log(key, val);
       // url转发的情形  /api/test  =>   https://www.shiguangkey.com/api/mine
       if (/\(.+\)/.test(path)) {
         path = new RegExp(`^${path}$`);

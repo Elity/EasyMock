@@ -69,6 +69,12 @@
             padding: 10px 0;
         }
 
+        .tree-sub>li>input {
+            display: block;
+            padding: 10px;
+            width: 276px;
+        }
+
         .tree-sub>li>a {
             background: #2e2e2e;
             color: #e0e0e0;
@@ -79,9 +85,35 @@
             text-decoration: none;
         }
 
+        .tree-sub>li>a.cur,
+        .tree-sub>li:hover>a.cur {
+            background-color: #f47023;
+            color: #fff;
+        }
+
         .tree-sub>li:hover>a {
             background-color: #424242;
             color: #f5f5f5;
+        }
+
+        .save-btn {
+            display: inline-block;
+            width: 500px;
+            background-color: #ff4530;
+            color: #fff;
+            cursor: pointer;
+            line-height: 35px;
+            height: 35px;
+            font-size: 20px;
+            user-select: none;
+        }
+
+        .save-btn:hover {
+            box-shadow: 1px 1px 3px #9c9c9c;
+        }
+
+        .save-btn:active {
+            box-shadow: none;
         }
     </style>
 </head>
@@ -89,37 +121,61 @@
 <body>
     <script type="text/x-template" id="tree-template">
         <ul class="tree-ul">
-            <li v-for="cls in data">
-                <a href='javascript:;' @click="toggle(cls)">
-                    <span>[{{ cls.open ? '-' : '+' }}]</span>{{cls.name}}
-                </a>
-                <ul v-show="cls.open" class="tree-sub">
-                    <li v-if="cls.children.length === 0">
-                        <a href='javascript:;'>啥子都冒得</a>
-                    </li>
-                    <li v-for="api in cls.children" @click="apiEdit(api.body)">
-                        <a href='javascript:;'>{{api.name}}</a>
-                    </li>
-                </ul>   
-            </li>
+            <slot></slot>
             <li>
-                <input type='text' v-model='newModuleName' v-if='adding' ref='editInput' @blur="addModule" @keyup.enter="addModule"/>
+                <input type='text'
+                    placeholder="输入模块名"
+                    v-model.trim='newModuleName' 
+                    v-if='adding' 
+                    ref='editInput'
+                    @blur="addModule" 
+                    @keyup.enter="addModule"/>
             </li>
-            <li class="add" @click="addChild">
+            <li class="add" @click="showInput" v-if='!adding'>
                 <a href='javascript:;'>添加模块</a>
             </li>
         </ul>
     </script>
+    <script type="text/x-template" id="tree-item-template">
+        <li>
+            <a href='javascript:;' @click="toggle" @dblclick="delModule(data)">
+                <span>[{{ data.open ? '-' : '+' }}]</span>{{data.name}}
+            </a>
+            <ul v-show="data.open" class="tree-sub">
+                <li v-for="api in data.children" @click="apiEdit(data.name,api.name,api.body)" @dblclick="delApi(data.name,api.name)">
+                    <a href='javascript:;' :class="api.name.toLowerCase() === cur.toLowerCase() ? 'cur' : ''">{{api.name}}</a>
+                </li>
+                <li>
+                    <input type='text'
+                        placeholder="get /api/xxx/xx"
+                        v-model.trim='newApiName' 
+                        v-if='adding' 
+                        ref='editInput'
+                        @blur="addApi(data.name)" 
+                        @keyup.enter="addApi(data.name)"/>
+                </li>
+                <li class="add" @click="showInput" v-if='!adding'>
+                    <a href='javascript:;'>添加API</a>
+                </li>
+            </ul>   
+        </li>
+    </script>
+
     <div id='wrap'>
         <div id="menu-tree">
             <div class="jsoneditor-menu">
             </div>
             <div class="menu-item">
-                <tree class="item" :data="treeData" @change="apiEdit">
+                <tree class="item" @add="addModule">
+                    <tree-item v-for="item in treeData" :cur="curApi" :data="item" @del="del" @add="addApi" @change="apiEdit" @open="getApiList">
+                    </tree-item>
                 </tree>
             </div>
         </div>
-        <div id="jsoneditorEdit" class="editor"></div>
+        <div class="editor">
+            <div id="jsoneditorEdit" class="editor" style="height:765px"></div>
+            <div class="save-btn" @click="saveApi">保存</div>
+        </div>
         <div id="jsoneditorRead" class="editor"></div>
     </div>
 
@@ -127,9 +183,6 @@
         (function () {
             Vue.component('tree', {
                 template: '#tree-template',
-                props: {
-                    data: Array
-                },
                 data() {
                     return {
                         adding: false,
@@ -137,44 +190,64 @@
                     }
                 },
                 methods: {
-                    toggle(cls) {
-                        cls.open = !cls.open
-                        if (cls.open && !cls.children.length) {
-                            post('/getMockApiList', { file: cls.name }).then(res => {
-                                cls.children = res.data.map(api => ({
-                                    name: api.method,
-                                    body: api.body
-                                }))
-                            })
-                        }
-                    },
-                    apiEdit(body) {
-                        this.$emit('change', body)
-                    },
-                    addChild() {
+                    showInput() {
                         this.adding = true
                         Vue.nextTick(() => {
                             this.$refs.editInput.focus()
                         })
-
                     },
                     addModule() {
-                        const md = this.newModuleName.trim()
                         this.adding = false
-                        if (md) {
-                            if (this.data.some(d => d.name === md)) {
-                                alert('模块名重复，请重试')
-                                this.newModuleName = ''
-                                return
-                            }
-                            this.data.push({
-                                name: md,
-                                children: [],
-                                open: false
-                            })
-                            this.newModuleName = ''
-                        }
+                        this.$emit('add', this.newModuleName)
+                        this.newModuleName = ''
+                    }
+                }
+            })
 
+            Vue.component('tree-item', {
+                template: '#tree-item-template',
+                props: {
+                    data: Object,
+                    cur: String
+                },
+                data() {
+                    return {
+                        newApiName: '',
+                        adding: false
+                    }
+                },
+                methods: {
+                    showInput() {
+                        this.adding = true
+                        Vue.nextTick(() => {
+                            this.$refs.editInput.focus()
+                        })
+                    },
+                    addApi(moduleName) {
+                        this.adding = false
+                        this.$emit('add', moduleName, this.newApiName)
+                        this.newApiName = ''
+                    },
+                    toggle() {
+                        this.data.open = !this.data.open
+                        if (!this.data.children.length) {
+                            this.$emit('open', this.data.name)
+                        }
+                    },
+                    apiEdit(moduleName, api, body) {
+                        this.$emit('change', moduleName, api, body)
+                    },
+                    delModule(theModule) {
+                        if (theModule.children.length) {
+                            alert('该模块下有api，无法被删除')
+                            return
+                        }
+                        this.$emit('del', theModule.name)
+                    },
+                    delApi(moduleName, apiName) {
+                        if (confirm('确定要删除该API吗？')) {
+                            this.$emit('del', moduleName, apiName)
+                        }
                     }
                 }
             })
@@ -184,14 +257,95 @@
                 data: {
                     treeData: [],
                     reader: null,
-                    editor: null
+                    editor: null,
+                    curApi: '',
+                    curModule: ''
                 },
                 methods: {
-                    apiEdit(body) {
+                    apiEdit(moduleName, api, body) {
                         this.editor.setText(body)
                         syncEditor(this.editor, this.reader)
                         this.editor.format()
                         this.editor.focus()
+                        this.curApi = api
+                        this.curModule = moduleName
+                    },
+                    getApiList(moduleName) {
+                        post('/getMockApiList', { file: moduleName }).then(res => {
+                            let apis = res.data.map(api => ({
+                                name: api.method,
+                                body: api.body
+                            }))
+                            this.treeData.some((m, i) => {
+                                if (m.name === moduleName) {
+                                    m.children = apis
+                                    return true
+                                }
+                            })
+                        })
+                    },
+                    saveApi() {
+                        if (!this.curApi) return;
+                        try {
+                            const json = this.editor.getText()
+                            JSON.parse(json)
+                            post('/setMockApi', { file: this.curModule, method: this.curApi, body: json })
+                        } catch (e) {
+                            alert('json格式有误，请检查')
+                        }
+                    },
+                    addApi(moduleName, apiName) {
+                        if (!apiName) return;
+                        if (!/^(get\s+|post\s+)?(\/[\w\-_]+)+$/i.test(apiName)) {
+                            alert('格式有误，参考格式：\r\n  /xxx/xxx \r\n  post /xxx/xxx')
+                            return
+                        }
+                        if (this.treeData.some(md => md.children.length && md.children.some(api => api.name.toLowerCase() === apiName.toLowerCase()))) {
+                            alert('接口重复，请重试')
+                            return;
+                        }
+                        this.treeData.some(md => {
+                            if (md.name === moduleName) {
+                                md.children.push({
+                                    name: apiName,
+                                    body: '{}'
+                                })
+                                return true
+                            }
+                        })
+                        post('/addMockApi', { file: moduleName, method: apiName })
+                        this.apiEdit(moduleName, apiName, '{}')
+                    },
+                    addModule(moduleName) {
+                        if (!moduleName) return;
+                        if (!/^[\w\-\_]+$/.test(moduleName)) {
+                            alert('模块名称有误，只能是数字、字母、下划线、分割线')
+                            return
+                        }
+                        if (this.treeData.some(d => d.name === moduleName)) {
+                            alert('模块名冲突，请重试')
+                            return;
+                        }
+                        this.treeData.push({
+                            name: moduleName,
+                            open: false,
+                            children: []
+                        })
+                        post('/addMockModule', { file: moduleName })
+                    },
+                    del(moduleName, apiName) {
+                        if (apiName) {
+                            post('/delMockApi', { file: moduleName, method: apiName })
+                            this.treeData.some(m => {
+                                if (m.name === moduleName) {
+                                    m.children = m.children.filter(api => api.name !== apiName)
+                                    return true
+                                }
+                            })
+                        } else {
+                            post('/delMockModule', { file: moduleName })
+                            this.treeData = this.treeData.filter(m => m.name !== moduleName)
+                        }
                     }
                 },
                 mounted() {
@@ -200,9 +354,7 @@
                     this.editor = obj.editor
                     syncEditor(this.editor, this.reader)
                     get('/getMockFileList').then(res => {
-                        this.treeData = res.data.map(md => {
-                            return { name: md, open: false, children: [] }
-                        })
+                        this.treeData = res.data.map(md => ({ name: md, open: false, children: [] }))
                     })
                 }
             })

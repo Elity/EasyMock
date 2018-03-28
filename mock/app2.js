@@ -1,1 +1,1 @@
-module.exports = { "/api/chen/test": { a: 1, b: 2, c: [1, 2, 3] } };
+module.exports={"/api/chen/test":{"a":1,"b":2,"c":[1,2,3]},"/api/test/1aaa":{"a":1,"b":[1,2,3,4]},"/api/test/2aaa":{},"/api/test/3aaa":{},"/api/test/4aaa":{},"/api/test/5aaa":{}}
