@@ -238,7 +238,7 @@
                         this.$emit('change', moduleName, api, body)
                     },
                     delModule(theModule) {
-                        if (theModule.children.length) {
+                        if (confirm('确定要删除该模块吗？') && theModule.children.length) {
                             alert('该模块下有api，无法被删除')
                             return
                         }
