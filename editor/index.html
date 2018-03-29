@@ -128,7 +128,7 @@
                     v-model.trim='newModuleName' 
                     v-if='adding' 
                     ref='editInput'
-                    @blur="addModule" 
+                    @blur="adding=false,newModuleName=''" 
                     @keyup.enter="addModule"/>
             </li>
             <li class="add" @click="showInput" v-if='!adding'>
@@ -151,7 +151,7 @@
                         v-model.trim='newApiName' 
                         v-if='adding' 
                         ref='editInput'
-                        @blur="addApi(data.name)" 
+                        @blur="adding=false,newApiName=''" 
                         @keyup.enter="addApi(data.name)"/>
                 </li>
                 <li class="add" @click="showInput" v-if='!adding'>
