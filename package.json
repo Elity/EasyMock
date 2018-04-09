@@ -1,15 +1,13 @@
 {
-  "name": "mockserver",
+  "name": "easymock",
   "version": "1.0.0",
-  "description": "a mock server for TZ",
+  "description": "a simple mock server",
   "main": "index.js",
   "scripts": {
     "start": "node run.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [
-    "mock"
-  ],
+  "keywords": ["mock"],
   "author": "Fighting",
   "license": "MIT",
   "devDependencies": {
@@ -19,8 +17,6 @@
     "debug": "^3.1.0",
     "express-http-proxy": "^1.1.0",
     "glob": "^7.1.2",
-    "url": "^0.11.0",
-    "webpack": "^2.7.0",
-    "webpack-dev-server": "^2.11.2"
+    "url": "^0.11.0"
   }
 }
