@@ -1,6 +1,6 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const log = require("../log");
+const log = require("./log");
 
 let _server = null,
   app = null;
@@ -26,7 +26,7 @@ function start(rootPath, port) {
       });
     _server.addListener("connection", socket => {
       // 不设置socket连接超时的话无法停止服务
-      socket.setTimeout(10e3);
+      socket.setTimeout(3e3);
     });
   });
 }

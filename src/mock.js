@@ -139,21 +139,21 @@ function applyMock() {
   }
 }
 
-/**
- * app  express application
- * mockPath  mock dir path
- * enableParse need to enable build-in mock parse
- * watch  file watch
- */
-
-function startMock(app, mockPath, enableParse, watch) {
-  MOCK_DIR = mockPath;
-  MOCK_FILES = join(mockPath, "*.js");
+function startMock(mockDir, { enableParse, app, watch, port = 9999 }) {
+  if (!mockDir) throw Error("Must specify the mockDir!!");
+  MOCK_DIR = mockDir;
+  MOCK_FILES = join(mockDir, "*.js");
   ENABLE_PARSE = enableParse;
   APP = app;
-  WATCH = watch;
-  if (!MOCK_DIR || !APP || !WATCH) throw Error("arguments error");
-  applyMock();
+  WATCH = watch || require("./watch");
+  if (APP) {
+    applyMock();
+    return Promise.resolve(APP);
+  } else {
+    return new Promise((resolve, reject) => {
+      resolve(require("./server").start(path, port));
+    });
+  }
 }
 
 function stopMock() {

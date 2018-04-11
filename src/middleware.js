@@ -1,4 +1,4 @@
-module.exports = {
+const mds = {
   HelloEasyMockMiddleware() {
     return function HelloEasyMockMiddleware(req, res, next) {
       res.send("<h1>Hello EasyMock!</h1>");
@@ -25,3 +25,5 @@ module.exports = {
     };
   }
 };
+
+module.exports = mds;
