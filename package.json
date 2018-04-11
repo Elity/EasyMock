@@ -5,18 +5,25 @@
   "main": "index.js",
   "scripts": {
     "start": "node run.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha"
   },
-  "keywords": ["mock"],
+  "keywords": [
+    "mock"
+  ],
   "author": "Fighting",
   "license": "MIT",
-  "devDependencies": {
+  "dependencies": {
     "chalk": "^2.3.2",
     "chokidar": "^2.0.3",
-    "cross-env": "^5.1.4",
-    "debug": "^3.1.0",
+    "express": "^4.16.3",
     "express-http-proxy": "^1.1.0",
     "glob": "^7.1.2",
     "url": "^0.11.0"
+  },
+  "devDependencies": {
+    "chai": "^4.1.2",
+    "mocha": "^5.0.5",
+    "supertest": "^3.0.0",
+    "vscode": "^1.1.6"
   }
 }

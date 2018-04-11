@@ -1,19 +1,24 @@
-var fs = require("fs");
-var url = require("url");
-var path = require("path");
-var glob = require("glob");
-var assert = require("assert");
-var proxy = require("express-http-proxy");
+const fs = require("fs");
+const url = require("url");
+const path = require("path");
+const glob = require("glob");
+const assert = require("assert");
+const proxy = require("express-http-proxy");
+const middleware = require("./middleware");
 const log = require("./log");
-const { join, resolve } = path;
+const { join, resolve, dirname } = path;
 
 let MOCK_DIR;
 let MOCK_FILES;
 let ENABLE_PARSE;
 let APP;
-let WATCH;
+let WATCH; // 内置文件观察器
+let BUILD_IN_SERVER; //内置服务器
 let watcher = null;
 
+/**
+ * 删除require缓存，并加载所有mock文件
+ */
 function getConfig() {
   Object.keys(require.cache).forEach(file => {
     if (~file.indexOf(MOCK_DIR)) {
@@ -31,6 +36,12 @@ function getConfig() {
   return config;
 }
 
+/**
+ * mock路由处理
+ * @param {*} method
+ * @param {*} path
+ * @param {*} value
+ */
 function createMockHandler(method, path, value) {
   return function mockHandler(req, res) {
     let data = typeof value === "function" ? value(req) : value;
@@ -42,6 +53,12 @@ function createMockHandler(method, path, value) {
   };
 }
 
+/**
+ * mock路由转发
+ * @param {*} method
+ * @param {*} path
+ * @param {*} target
+ */
 function createProxy(method, path, target) {
   return proxy(target, {
     filter(req) {
@@ -58,9 +75,11 @@ function createProxy(method, path, target) {
   });
 }
 
+/**
+ * 根据加载的数据类型分情况处理mock数据
+ */
 function realApplyMock() {
   const config = getConfig();
-
   Object.keys(config).forEach(key => {
     const { method, path } = parseKey(key);
     const val = config[key];
@@ -89,7 +108,7 @@ function realApplyMock() {
     }
   });
 
-  watcher = WATCH(MOCK_FILES).on("change delete create", (type, { fsPath }) => {
+  watcher = WATCH(MOCK_FILES).on("change delete create", (type, fsPath) => {
     log.info(`File changed(${type}):${fsPath}`);
     if (type === "create") initMockFile(fsPath);
     watcher.close();
@@ -98,6 +117,11 @@ function realApplyMock() {
   });
 }
 
+/**
+ * 解析key中的请求方式与api地址
+ * get /api/a/b
+ * @param {*} key
+ */
 function parseKey(key) {
   let arr = key.trim().split(/\s+/);
   let [method, path] = arr;
@@ -122,6 +146,9 @@ function initMockFile(filePath) {
   }
 }
 
+/**
+ * 内部循环处理mock的方法
+ */
 function applyMock() {
   try {
     realApplyMock();
@@ -139,25 +166,61 @@ function applyMock() {
   }
 }
 
-function startMock(mockDir, { enableParse, app, watch, port = 9999 }) {
-  if (!mockDir) throw Error("Must specify the mockDir!!");
+/**
+ * 对express服务器使用跨域中间件与用于路由定位的中间件
+ */
+function applyMiddleware() {
+  APP.use(middleware.corsMiddleware());
+  APP.use("/hello/easymock", middleware.HelloEasyMockMiddleware());
+}
+
+function isFile(path) {
+  return fs.lstatSync(path).isFile();
+}
+
+/**
+ * 对外暴露的启动mock的方法
+ * @param {*} mockDir
+ * @param {*} param1
+ */
+function startMock(mockDir, { enableParse, app, watch, port = 9999 } = {}) {
+  if (!mockDir)
+    return Promise.reject(new TypeError("`mockDir` should be a string type"));
   MOCK_DIR = mockDir;
-  MOCK_FILES = join(mockDir, "*.js");
+  if (isFile(MOCK_DIR)) {
+    MOCK_FILES = MOCK_DIR;
+    MOCK_DIR = dirname(MOCK_DIR);
+  } else {
+    MOCK_FILES = join(MOCK_DIR, "*.js");
+  }
   ENABLE_PARSE = enableParse;
   APP = app;
   WATCH = watch || require("./watch");
   if (APP) {
+    applyMiddleware();
     applyMock();
     return Promise.resolve(APP);
   } else {
     return new Promise((resolve, reject) => {
-      resolve(require("./server").start(path, port));
+      BUILD_IN_SERVER = require("./server");
+      resolve(
+        BUILD_IN_SERVER.start(MOCK_DIR, port).then(app => {
+          APP = app;
+          applyMiddleware();
+          applyMock();
+          return app;
+        })
+      );
     });
   }
 }
 
+/**
+ * 对外暴露的停止mock的方法
+ */
 function stopMock() {
   watcher && watcher.close && watcher.close();
+  BUILD_IN_SERVER && BUILD_IN_SERVER.stop();
 }
 
 module.exports = { startMock, stopMock };
