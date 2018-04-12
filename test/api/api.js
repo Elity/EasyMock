@@ -1,5 +1,1 @@
-module.exports = {
-  "/api/test": {
-    msg: "hello test"
-  }
-};
+module.exports = { "/api/test": { msg: "hello test" } };

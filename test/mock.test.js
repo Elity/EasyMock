@@ -2,6 +2,7 @@ const expect = require("chai").expect;
 const request = require("supertest");
 const mock = require("..");
 const path = require("path");
+const fs = require("fs");
 
 describe("test", function() {
   it("mock.startMock() should return a promise", function() {
@@ -31,8 +32,30 @@ describe("test", function() {
         .expect(200)
         .then(res => {
           expect(res.body.msg).to.be.equal("hello test");
-          mock.stopMock();
         });
+    });
+  });
+  it("mock.startMock(path) should listen file change in the path", function() {
+    const file = path.resolve("./test/api/apinew.js");
+    const msg = "hello test new";
+    obj = {
+      "/api/test/new": { msg }
+    };
+    fs.writeFileSync(file, `module.exports=${JSON.stringify(obj)}`);
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        resolve(
+          mockServer.then(app => {
+            return request(app)
+              .get("/api/test/new")
+              .expect(200)
+              .then(res => {
+                expect(res.body.msg).to.be.equal(msg);
+                //fs.unlinkSync(file);
+              });
+          })
+        );
+      }, 1000);
     });
   });
 });
