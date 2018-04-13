@@ -5,7 +5,8 @@ function watch(globPath) {
   const eventMap = {
     create: "add",
     change: "change",
-    delete: "unlink"
+    delete: "unlink",
+    ready: "ready"
   };
   return {
     on(eventNames, fn) {
