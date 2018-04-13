@@ -52,14 +52,18 @@ function genFloat(count) {
   return ("0".repeat(count) + num).slice(-count);
 }
 
+function randomFromPool(strs) {
+  return strs[Math.floor(Math.random() * strs.length)];
+}
+
 let idCount;
 // 字符串内函数
 const fns = {
-  str(min, max) {
-    return genStr(randomZm, min, max);
+  str(min, max, pool) {
+    return genStr(pool ? randomFromPool.bind(pool) : randomZm, min, max);
   },
-  cstr(min, max) {
-    return genStr(randomHz, min, max);
+  cstr(min, max, pool) {
+    return genStr(pool ? randomFromPool.bind(pool) : randomHz, min, max);
   },
   num(min, max, digit) {
     if (!min && !max) {
