@@ -114,6 +114,14 @@ const fns = {
   },
   cparagraph(min, max) {
     return genParagraph(() => this.cstr(10, 50), "，", min, max) + "。";
+  },
+  pick(first, ...args) {
+    if (Array.isArray(first)) {
+      args = first;
+    } else {
+      args.push(first);
+    }
+    return args[Math.floor(Math.random() * args.length)];
   }
 };
 
