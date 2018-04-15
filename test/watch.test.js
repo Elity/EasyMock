@@ -21,6 +21,21 @@ function waitFor(spies, fn) {
 }
 
 describe("watch test", function() {
+  it("should emit `create` event when file was changed", function(done) {
+    let file = path.resolve("./test/api/create.js");
+    let spy = sinon.spy();
+    watch(file)
+      .on("create", spy)
+      .on("ready", function() {
+        expect(spy.notCalled).to.be.ok;
+        fs.writeFileSync(file, Date.now());
+        setTimeout(() => {
+          expect(spy.calledOnce).to.be.ok;
+          done();
+        }, 100);
+      });
+  });
+
   it("should emit `change` event when file was changed", function(done) {
     let file = path.resolve("./test/api/apitest.js");
     let spy = sinon.spy();
